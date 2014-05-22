@@ -1,0 +1,10 @@
+About --> 1
+Banner --> 2
+Edit --> 1
+File --> 1
+Format --> 1
+msgbox --> 3
+statusbar --> 0
+tab --> 0
+view --> 1
+About screen -->3

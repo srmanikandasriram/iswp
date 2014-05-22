@@ -1,0 +1,255 @@
+
+<!-- saved from url=(0049)http://www.ana.sudani.co.uk/Programming/mouse.htm -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Interfacing with the Mouse in MS-DOS Mode</title>
+</head>
+<body background="./Interfacing with the Mouse in MS-DOS Mode_files/tan_pa~2.gif" bgcolor="white" text="black" link="Blue" vlink="Red" alink="Green">
+<a href="http://www.ana.sudani.co.uk/Programming/Programming.html"><img src="./Interfacing with the Mouse in MS-DOS Mode_files/home.gif" border="0" alt="Home Page" align="left" width="69" height="38"></a>
+<a href="http://www.ana.sudani.co.uk/Programming/Programming.html"><img src="./Interfacing with the Mouse in MS-DOS Mode_files/home.gif" border="0" alt="Home Page" align="right" width="69" height="38"></a>
+<center> <font face="Times Roman" size="6" color="#0099ff">Using the Mouse in DOS mode</font>
+</center>
+<hr align="CENTER" color="Aqua" width="300">
+<hr width="200" align="CENTER" color="Aqua">
+<br>
+<center><a href="mailto:omer@newgeneration.freeserve.co.uk"><img alt="Feedback" src="./Interfacing with the Mouse in MS-DOS Mode_files/feedback.gif" border="0" width="398" height="33"></a></center>
+<p><i>The following page is extracted from the <a href="http://www.ana.sudani.co.uk/Programming/download.htm">
+Turbo C++ Graphics Tutor</a> Copyright © <a href="http://www.ana.sudani.co.uk/Programming/Digital.htm">
+Digital International Ltd 1997.</a><br></i>
+<b>Note :</b> for any additional information concerning this page &amp; the source code included,
+download the :-<br>
+<a href="http://www.ana.sudani.co.uk/Programming/software/C.ZIP">
+ Turbo C++ mouse &amp; images demo program files &amp; source code.</a><br>
+<a href="http://www.ana.sudani.co.uk/Programming/software/PASCAL.ZIP">
+ Turbo Pascal mouse &amp; images demo program files &amp; source code.</a>
+</p>
+<h3>A screen shot from the demo program :-</h3>
+<center><a href="http://www.ana.sudani.co.uk/Programming/demo.gif"><img src="./Interfacing with the Mouse in MS-DOS Mode_files/demo1.gif" border="0" alt="Click to enlarge" width="120" height="90"></a></center>
+<h3>Contents of this page :-</h3>
+<ol type="1"><b>
+ <li><a href="http://www.ana.sudani.co.uk/Programming/mouse.htm#Interface">Interfacing with the Mouse.</a>
+ </li><li><a href="http://www.ana.sudani.co.uk/Programming/mouse.htm#Initialize">Initializing the Mouse.</a>
+ </li><li><a href="http://www.ana.sudani.co.uk/Programming/mouse.htm#Display">Displaying the Mouse Cursor.</a>
+ </li></b><li><b><a href="http://www.ana.sudani.co.uk/Programming/mouse.htm#Information">Getting Mouse Information.</a>
+</b></li></ol>
+<h3><a name="Interface">Interfacing with the mouse :-</a></h3>
+<font face="Times Roman" size="3" color="#0000ff">
+<p>The two primary input devices used with GUIs are the keyboard and the mouse. The mouse is
+the input device of choice for many users because it offers greater flexibility and
+movement than manual keyboard input.<br>
+The mouse is very easy to access and control. The mouse system consist of the mouse and the
+mouse driver. The mouse is the device manipulated by the user to provide directional input
+to the program. The mouse driver is the memory resident
+program that provides communication between the mouse and the computer. The mouse driver
+maintains the cursor position of the mouse and the status of the mouse buttons. You can
+access the cursor position and the button status with in any application through software
+interrupt 33h. The C++ function int86 can be used to generate the software interrupt 33h and
+the Turbo Pascal procedure Intr can be used for the same purpose as well.
+The mouse driver has several functions by specifying the function number in the AX register
+when calling interrupt 33h. The BX,CX, and DX registers are used to pass parameters to the
+mouse functions.</p>
+<center><table border="1">
+<tbody><tr><th>Function</th><th>Meaning</th></tr>
+<tr><td>0</td><td>Resets the mouse and retrieves the mouse status.</td></tr>
+<tr><td>1</td><td>Displays the mouse cursor.</td></tr>
+<tr><td>2</td><td>Hides the mouse cursor.</td></tr>
+<tr><td>3</td><td>Retrieves the mouse cursor positioned the status of the mouse buttons.</td></tr>
+<tr><td>4</td><td>Retrieves the number of times a button was pressed since the last call.</td></tr>
+<tr><td>5</td><td>Retrieves the number of times a button was released since the last call.</td></tr>
+<tr><td>6</td><td>Specifies the horizontal limits for the cursor.</td></tr>
+<tr><td>7</td><td>Specifies the vertical limits for the cursor.</td></tr>
+<tr><td>8</td><td>Specifies the cursor to use for graphics modes.</td></tr>
+<tr><td>9</td><td>Specifies the cursor to use for text modes.</td></tr>
+</tbody></table></center>
+<font color="black"><h3>Getting Started with the Mouse:</h3></font>
+<p>
+There are two things you need to know before we started to use the mouse. First under
+DOS, you must load the mouse driver software that came with your mouse before trying to use
+it.
+</p>
+<font color="black"><h3><a name="Initialize">Initializing the Mouse:</a></h3></font>
+<p>Service 0 -  put AX = 0<br>
+Returns : AX = 0 means Failure.<br>
+<br>
+<font color="black" size="+1">
+C++ Example:
+<i></i></font></p><font color="black" size="+1"><i><pre>int mouse_init(void)
+{
+ int result;
+ asm {
+   mov ax,00h;
+   int 33h;
+   mov result,ax;
+     }
+ return(result);
+}
+</pre></i>
+Turbo Pascal Example:
+<i><pre>Function Mouse_Init : Boolean;
+Var
+Result : Word;
+Begin
+ ASM
+   MOV AX,$00
+   INT $33
+   MOV Result,ax
+ End;
+ Mouse_Init := (Result &lt;&gt; 0);
+End;
+</pre></i>
+</font>
+
+Using INT 33H service 0 is the necessary first step toward using the mouse. If this service
+returns a nonzero value, the mouse is initialized. Otherwise, the mouse can not be used
+(because it is not installed in the computer or the mouse driver is missing). In that case,
+and if your program depends on the use of  a mouse, you should print out an error message
+and quit.<br>
+Once the mouse is initialized, you've all set until the computer is turned off- you don't
+have to initialize it again (although doing so does no harm). Note that initializing the
+mouse does not display the mouse cursor. A function that initialize the mouse and returns
+the result is included in the *.ZIP files specified above "MOUSE.INC" &amp; "MOUSE.PAS".<br><p></p>
+
+<font color="black"><h3><a name="Display">Displaying the Mouse Cursor:</a></h3></font>
+
+<p>Service 1 - put AX = 1<br>
+<br>
+<font color="black" size="+1">
+C++ Example:
+<i></i></font></p><font color="black" size="+1"><i><pre>void mouse_show(void)
+{
+ asm {
+	mov ax,01h;
+	int 33h;
+ }
+}
+</pre>
+</i>
+Turbo Pascal Example:
+<i><pre>procedure Mouse_Show;
+Begin
+ ASM
+   MOV AX,$01
+   INT $33
+ End;
+End;
+</pre>
+</i>
+</font>
+Next we have to display the mouse cursor using INT 33H service 1. A small
+procedure that displays the mouse cursor is included in the *.ZIP files specified above "MOUSE.INC" &amp; "MOUSE.PAS".
+At this point, the mouse system is active and the
+cursor has appeared on the screen. We can also make it vanish using INT 33H service
+2 to hides the mouse cursor. If the cursor is already off, it stays off. There are times when
+the mouse cursor be a distraction on the screen, and this service can fix that.<br>
+The very important reason for hiding the mouse cursor, as the mouse cursor moves over the
+screen, the mouse driver software reads the character at the preset position before it
+displays the mouse cursor. Then, when the mouse cursor moves on, that character is restored,
+attributes and all. However, this means that if you have changed the screen display behind
+the mouse cursor (for example, opened a window there), it will still restore the original-and
+wrong- character, leaving a one-character hole. To avoid this problem, you should always turn
+the mouse cursor off when displaying a window or over-writing the mouse cursor in any way,
+and turn it on again immediately afterwards.<br>
+<br>
+<font color="black" size="+1">
+C++ Example:
+<i><pre>void mouse_hide(void)
+{
+ asm {
+	mov ax,02h;
+	int 33h;
+ }
+}
+</pre>
+</i>
+<i><pre>Turbo Pascal Example:
+Procedure Mouse_Hide;
+Begin
+ ASM
+   MOV AX,$02
+   INT $33
+ End;
+End;
+</pre>
+</i>
+</font>
+
+We can also read right and left button information from the mouse INT 33H service 3. Let's
+look at that process next.<p></p>
+<font color="black"><h3><a name="Information">Getting Mouse Information:</a></h3></font>
+<p>Service 3-set these things : AX = 3<br>
+This will return:<br><br>
+</p><center><table border="1">
+<tbody><tr><th>BX</th><th>Means</th></tr>
+<tr><td>0</td><td>No button down</td></tr>
+<tr><td>1</td><td>Left button down</td></tr>
+<tr><td>2</td><td>Right button down</td></tr>
+<tr><td>3</td><td>Both button down</td></tr>
+</tbody></table></center><br>
+CX = Current mouse cursor column<br>
+DX = Current mouse cursor row<br><br>
+
+<font color="black" size="+1">
+C++ Example:
+<i><pre>unsigned int co,ro,bo;
+/* This fuction is to return the
+      mouse information
+      bo = mouse button
+      ro = the y position of the mouse cursor
+      co = the x position of the mouse cursor */
+void mouse_info(void)
+{
+asm {
+  mov ax,03h;
+  int 33h;
+  mov bo,bx;
+  mov ro,dx;
+  mov co,cx;
+ }
+}
+</pre>
+</i>
+<i><pre>Turbo Pascal Example:
+(* This Procedure is to return the
+      mouse information
+      Bu = mouse button
+      Ro = the y position of the mouse cursor
+      Co = the x position of the mouse cursor *)
+Procedure Mouse_info;
+Var
+B, C, R : Word;
+Begin
+ ASM
+   MOV AX,$03
+   INT $33
+   MOV B,BX
+   MOV C,CX
+   MOV R,DX
+ End;
+ Co := C; Ro := R; Bu := B;
+End;
+</pre>
+</i>
+</font>
+
+This serve, service 3, returns information in BX, DX, and CX. BX indicates which button(s)
+is (are) down. This service also returns the current row and column of the mouse cursor in
+DX and CX, respectively. These numbers are measured in pixels, in 640 x 200 mode, DX can
+range from 0 to 199 and CX from 0 to 639.<br>
+If you want to convert from pixel to alphanumeric columns and rows, just integer divide the
+pixel range by 8 and add 1 to the result.<br>
+The most severe limitation here is that service 3 only provides an instant snapshot of
+what's going on with the mouse. If you want to use it for mouse input, you have to keep
+"Polling" it , that is, looping over it until something happens.<br>
+All the above mouse routines are included in the *.ZIP files specified above "MOUSE.INC"
+&amp; "MOUSE.PAS".
+<p></p>
+</font>
+
+
+
+
+
+
+
+
+
+</body></html>

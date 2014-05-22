@@ -1,0 +1,905 @@
+
+int no_of_docs=0;
+
+char *filename[]={"Doc1.dat",
+		    "Doc2.dat",
+		    "Doc3.dat",
+		    "Doc4.dat",
+		    "Doc5.dat",
+		    "Doc6.dat",
+		    "Doc7.dat",
+		    "Doc8.dat",
+		    "Doc9.dat",
+		    "Doc10.dat",
+			"Page1.dat",
+			"Page2.dat",
+			"Page3.dat",
+			"page4.dat",
+			"page5.dat",
+			"page6.dat",
+			"page7.dat",
+			"page8.dat",
+			"page9.dat",
+			"page10.dat"};
+
+
+
+ofstream ofile;
+ifstream ifile;
+fstream file;
+
+struct link{
+	int y;
+	long pos;
+};
+
+struct fileinfo
+{
+	struct date date_created, date_modified;
+	int no_of_pages;
+	char name[100];
+	char author[50];
+	char program[25];
+};
+
+struct page
+{
+	int pageno;
+	int no_of_lines;
+	int pagestatus; // 0-> empty 1-> partial 2->full
+	link l[20];
+};
+
+class document{
+	fileinfo filedetails;
+	page pagedetails;
+	formatting font;
+	char tfilename[10];
+	int changes; // 0-> no changes 1-> changes have been made to the file
+	int read_only; // 1-> read_only
+	int docno;
+	int posx,posy;
+	int curpage;
+	long pagestart;
+	int curline,curcol;
+	char *lines;
+public:
+	document()
+	{
+		posx=160;
+		posy=220;
+		changes=0;
+		strcpy(tfilename,filename[curdoc++]);
+		font.justify=-1;
+		font.italic=1;
+		font.underline=0;
+		font.color=7;
+		font.font=0;
+		pagestart=0;
+		strcpy(filedetails.name,"");
+		strcpy(lines,"");
+	}
+	int create();
+	int create(char name[]);
+	void work();
+	void pagenav(int dir);
+	void outputtext(int);
+	void toolbar(int);
+	void updatestatus(char msg[]);
+	int exit();
+	int save(char name[]);
+	void insert(long pos,int a);
+	void fd(); // file details
+	long select(int,int);
+	void copy(long,long,int);
+	void updatefont(int); // 0-> global to local 1-> local to global
+}doc[10];
+
+int document::create()
+{
+	remove(tfilename);
+	docno=++no_of_docs;
+	imgload("c:/ISWP/images/tab.bmp",2,docno*70+93,0);
+	setcolor(53);
+	strcpy(filedetails.name,"");
+	outtextxy(16,docno*70+128,tfilename);
+	getdate(&filedetails.date_created);
+	getdate(&filedetails.date_modified);
+	strcpy(filedetails.author,curuser.username);
+	strcpy(filedetails.program,"InteSoft Word Processor");
+	filedetails.no_of_pages=1;
+	ofile.open(tfilename,ios::binary);
+	ofile.write((char *)&filedetails,sizeof(filedetails));
+	pagestart=ofile.tellp();
+	int marker;
+	marker=150;
+	ofile.put(marker);
+	ofile.write((char *)&font.color,2);
+	marker=147;
+	ofile.put(marker);
+	ofile.write((char *)&font.font,2);
+	ofile.put(142);
+	ofile.close();
+	file.open(filename[9+docno],ios::binary|ios::out);
+	file.write((char *)&pagestart,sizeof(pagestart));
+	file.close();
+	read_only=0;
+	pagedetails.pageno=1;
+	pagedetails.no_of_lines=1;
+	pagedetails.pagestatus=0;
+	curline=1;
+	curcol=1;
+	curpage=1;
+	curdoc=docno;
+	return 0;
+}
+
+int document::create(char name[])
+{
+	int x,y,temp;
+	docno=++no_of_docs;
+	file.open(name,ios::binary|ios::nocreate|ios::in);
+	if(file)
+	{
+		file.read((char *)&filedetails,sizeof(filedetails));
+		pagestart=file.tellg();
+		file.close();
+		file.open(filename[9+docno],ios::binary|ios::out);
+		file.write((char *)&pagestart,sizeof(pagestart));
+		file.close();
+		ifile.open(name,ios::binary);
+		ofile.open(tfilename,ios::binary);
+		temp=ifile.get();
+		while(!ifile.eof()&&temp!=-1)
+		{
+			ofile.put(temp);
+			temp=ifile.get();
+		}
+		ofile.close();
+		ifile.close();
+		imgload("c:/ISWP/images/tab.bmp",2,docno*70+93,0);
+		setcolor(53);
+		outtextxy(16,docno*70+128,tfilename);
+		curdoc=docno;
+		if(strcmp(filedetails.author,curuser.username)==0)
+			read_only=0;
+		else
+			read_only=1;
+		return 0;
+	}
+	else
+	{
+		no_of_docs--;
+		file.close();
+		imgload("c:/ISWP/images/msgbox1.bmp",320,320,3);
+		outtext(name,380,360);
+		outtext("File doesn't exist!",380,380);
+		while(getcord(x,y)!=1&&!kbhit());
+		return 1;
+	}
+}
+
+void document::work()
+{
+	int width;
+	curdoc=docno;
+	curpage=filedetails.no_of_pages;
+	outputtext(-1);
+	char temp[1];
+	temp[1]='\0';
+	file.open(tfilename,ios::binary|ios::in|ios::out|ios::app);
+	file.seekg(file.tellp());
+	if(pagedetails.pagestatus==2)
+	{
+		updatestatus("No more text can be added to this page");
+	}
+	else
+	{
+		do{
+		do{
+			setcolor(7);
+			line(posx,posy,posx+(!font.italic)*32,posy-32);
+			delay(50);
+			setcolor(0);
+			line(posx,posy,posx+(!font.italic)*32,posy-32);
+			delay(50);
+		}while(!kbhit());
+		temp[0]=getch();
+		if((int)temp[0]>31&&(int)temp[0]<127)
+		{
+			pagedetails.pagestatus=1;
+			if(posy>=690)
+			{
+				pagedetails.pagestatus=2;
+				setfillstyle(1,0);
+				bar(110,165,900,729);
+				posx=160;
+				posy=220;
+				curcol=0;
+				curline=0;
+				filedetails.no_of_pages++;
+				curpage++;
+				ofile.open(filename[9+docno],ios::binary|ios::app);
+				pagestart=file.tellp();
+				ofile.write((char *)&pagestart,sizeof(pagestart));
+				ofile.close();
+				if(font.underline==1)
+					file.put(190);
+
+			}
+			else if(posx>=860)
+			{				
+				switch(font.justify)
+				{
+				case 0:
+					/* Center */
+					setfillstyle(1,0);
+					bar(160,pagedetails.l[curline-1].y,860,pagedetails.l[curline-1].y-32);
+					posx=510-(posx-160)/2;
+					outtext(lines,posx,posy-32);
+					strcpy(lines,"");
+					break;
+				case 1:
+					/* Right */					
+					setfillstyle(1,0);
+					bar(160,pagedetails.l[curline-1].y,860,pagedetails.l[curline-1].y-32);
+					posx=1020-posx;					
+					outtext(lines,posx,posy-32);
+					strcpy(lines,"");
+					break;
+				}
+				posx=160;
+				posy+=32;
+				curcol=1;
+				curline++;
+				pagedetails.l[curline-1].y=posy;
+				pagedetails.l[curline-1].pos=file.tellp()-pagestart;
+				pagedetails.no_of_lines++;
+			}
+			file.put(temp[0]);
+			changes=1;
+			width=outtext(temp,posx,posy-32);
+			strcat(lines,temp);
+			posx+=width;			
+			if(font.underline==1)
+			{
+				setcolor(7);
+				line(posx-width,posy-5,posx,posy-5);
+			}	
+			curcol++;
+			updatestatus("");
+		}
+		else
+		{
+			switch((int)temp[0])
+			{
+			case 9:
+				//tab space
+				file.put(9);
+				if(posx<=840)
+					posx+=20;
+				else
+				{
+					posy+=32;
+					curline++;
+					posx=160+(20-(860-posx));
+				}
+				break;
+			case 8:
+				/* backspace */
+				if(!(curline==1&&curcol==1))
+				{
+				long t;
+				char lst;
+				file.seekg(pagestart);
+				while(!file.eof())
+				{
+					temp[0]=file.get();
+					if((int)temp[0]>31&&(int)temp[0]<127)
+					{
+						t=file.tellg()-1;
+						lst=temp[0];
+					}
+				}				
+				temp[0]=lst;
+				file.close();
+				ifile.open(tfilename,ios::binary);
+				ofile.open("temp.dat",ios::binary);
+				temp[0]=ifile.get();
+				while(t>=ifile.tellg())
+				{
+					ofile.put(temp[0]);
+					temp[0]=ifile.get();
+				}
+				ofile.close();
+				ifile.close();
+				remove(tfilename);
+				rename("temp.dat",tfilename);
+				file.open(tfilename,ios::binary|ios::in|ios::out|ios::app);	
+				width=outtext(temp,posx,posy-32);
+				setfillstyle(1,0);
+				int poly[8]={posx-width,posy,posx+width,posy,posx+(!font.italic)*32+width,posy-32,posx+(!font.italic)*32-width,posy-32};
+				fillpoly(4,poly);
+				curcol--;
+				if(posx<=160)
+				{
+					curline--;
+					file.close();
+					outputtext(-1);
+					file.open(tfilename,ios::binary|ios::in|ios::out|ios::app);	
+				}
+				else
+					posx-=width;
+				}
+				break;
+			case 13:
+				/* Enter */				
+				switch(font.justify)
+				{
+				case 0:
+					/* Center */
+					setfillstyle(1,0);										
+					bar(160,pagedetails.l[curline-1].y,860,pagedetails.l[curline-1].y-32);
+					posx=510-(posx-160)/2;					
+					outtext(lines,posx,posy-32);
+					strcpy(lines,"");
+					break;
+				case 1:
+					/* Right*/
+					setfillstyle(1,0);
+					bar(160,pagedetails.l[curline-1].y,860,pagedetails.l[curline-1].y-32);
+					posx=1020-posx;					
+					outtext(lines,posx,posy-32);
+					strcpy(lines,"");
+					break;
+				}
+				posx=160;
+				posy+=32;
+				file.put('\n');
+				curline++;
+				curcol=1;
+				pagedetails.l[curline-1].y=posy;
+				pagedetails.l[curline-1].pos=file.tellp()-pagestart;
+				break;
+			}
+		}
+	}while((int)temp[0]!=27);
+	}
+	file.close();
+	showmouse();
+}
+
+void document::outputtext(int pageno=-1)
+{
+	font.underline=0;
+	font.italic=::font.italic=1;
+	curline=1;
+	curcol=1;
+	int width;
+	updatefont(1);
+	setfillstyle(1,0);
+	hidemouse();
+	bar(110,165,900,729);
+	if(pageno==-1)
+		pageno=filedetails.no_of_pages;
+	curpage=pageno;
+	file.open(filename[9+docno],ios::binary|ios::in);
+	file.seekg((pageno-1)*4);
+	file.seekp((pageno)*4);
+	file.read((char *)&pagestart,sizeof(pagestart));
+	int left,right;
+	long first;
+	char temp[1];
+	int tem;
+	int i=0,j;
+	temp[1]='\0';
+	posx=160;
+	posy=220;
+	ifile.open(tfilename,ios::binary);
+	ifile.read((char *)&filedetails,sizeof(filedetails));
+	ifile.seekg(pagestart);
+	pagedetails.l[curline-1].y=220;
+	pagedetails.l[curline-1].pos=0;
+	do
+	{
+		ifile.get(temp[0]);
+		if((int)temp[0]>31&&(int)temp[0]<127)
+		{
+			width=outtext(temp,posx,posy-32);
+			strcat(lines,temp);
+			curcol++;
+			posx+=width;
+			if(font.underline==1)
+			{
+				setcolor(7);
+				line(posx-width,posy-5,posx,posy-5);
+			}
+		}
+		else
+		{
+			tem=(int)temp[0]+256;
+			switch (tem)
+			{
+			case 265:
+				/* Tab */
+				posx+=20;
+				break;
+			case 266:
+				/* Enter Key */
+				switch(font.justify)
+				{
+				case 0:
+					/* Center */
+					setfillstyle(1,0);										
+					bar(160,pagedetails.l[curline-1].y,860,pagedetails.l[curline-1].y-32);
+					posx=510-(posx-160)/2;					
+					outtext(lines,posx,posy-32);
+					strcpy(lines,"");
+					break;
+				case 1:
+					/* Right*/
+					setfillstyle(1,0);
+					bar(160,pagedetails.l[curline-1].y,860,pagedetails.l[curline-1].y-32);
+					posx=1020-posx;					
+					outtext(lines,posx,posy-32);
+					strcpy(lines,"");
+					break;
+				}
+				posy+=32;
+				curcol=1;
+				curline++;
+				posx=160;
+				pagedetails.l[curline-1].y=posy;
+				pagedetails.l[curline-1].pos=ifile.tellg()-pagestart;				
+				strcpy(lines,"");
+				break;
+			case 190:
+				/*underline*/
+				font.underline=!font.underline;				
+				break;
+			case 191:
+				/*italic*/
+				::font.italic=!font.italic;				
+				font.italic=::font.italic;
+				break;
+			case 142:
+				/*left justify*/
+				font.justify=-1;
+				break;
+			case 143:
+				/*right justify*/
+				font.justify=1;
+				 break;
+			case 144:
+				/*center*/
+				font.justify=0;
+				break;
+			case 147:
+				/*fonts*/
+				ifile.read((char*)&i,2);
+				font.font=i;
+				updatefont(1);
+				break;
+			case 150:
+				/*color*/
+				ifile.read((char*)&i,2);
+				font.color=i;
+				updatefont(1);
+				break;			
+			}
+		}
+		if(posx>=860)
+		{
+			switch(font.justify)
+			{
+			case 0:
+				/* Center */
+				setfillstyle(1,0);										
+				bar(160,pagedetails.l[curline-1].y,860,pagedetails.l[curline-1].y-32);
+				posx=510-(posx-160)/2;					
+				outtext(lines,posx,posy-32);
+				strcpy(lines,"");
+				break;
+			case 1:
+				/* Right*/
+				setfillstyle(1,0);
+				bar(160,pagedetails.l[curline-1].y,860,pagedetails.l[curline-1].y-32);
+				posx=1020-posx;					
+				outtext(lines,posx,posy-32);
+				strcpy(lines,"");
+				break;
+			}
+			posy+=32;
+			curcol=1;
+			curline++;
+			posx=160;
+			pagedetails.l[curline-1].y=posy;
+			pagedetails.l[curline-1].pos=ifile.tellg()-pagestart;
+		}
+	}while(tem!=255&&posy<690&&posx<860);	
+	first=ifile.tellg();
+	file.write((char *)&first,sizeof(first));
+	file.close();
+	ifile.close();
+	updatestatus("");
+	showmouse();
+}
+
+void document::pagenav(int dir)
+{
+	switch (dir)
+	{
+	case 1:
+		if(curpage<filedetails.no_of_pages)
+			outputtext(++curpage);
+		else
+			updatestatus("Page not available");
+		break;
+	case -1:
+		if(curpage>1)
+			outputtext(--curpage);
+		else
+			updatestatus("Page not available");
+		break;
+	}
+}
+
+void document::toolbar(int a)
+{
+	// set settings in font structure also
+	ofile.open(tfilename,ios::binary|ios::app);
+	switch(a)
+	{
+	case 0:
+		/* Bold */
+		if(font.bold==1)
+		{
+		ofile.put(147);
+		a=0; 
+		ofile.write((char *)&a,2);
+		::font.font=font.font=a;
+		font.bold=!font.bold;
+		}
+		else
+		{
+		ofile.put(147);
+		a=8; 
+		ofile.write((char *)&a,2);
+		::font.font=font.font=a;
+		font.bold=!font.bold;
+		}
+		break;
+	case 1:
+		/* Italics */
+		ofile.put(191);
+		::font.italic=!font.italic;
+		font.italic=::font.italic;
+		break;
+	case 2:
+		/* Underline */
+		ofile.put(190);
+		::font.underline=!font.underline;
+		font.underline=::font.underline;
+		break;
+	case 3:
+		/* Left Justify */
+		ofile.put(142);
+		font.justify=-1;
+		break;
+	case 4:
+		/* Center */
+		ofile.put(144);
+		font.justify=0;
+		break;
+	case 5:
+		// Right Justify
+		ofile.put(143);
+		font.justify=1;
+		break;
+	case 6:
+		// Paragraph
+		ofile.put('\n');
+		ofile.put('\t');
+		break;
+	}
+	ofile.close();
+}
+
+int document::exit()
+{
+	curdoc=docno;
+	remove(filename[9+docno]);
+	rename(filename[10+docno],filename[9+docno]);
+	if(changes)
+	{
+		imgload("c:/ISWP/images/msgbox.bmp",320,320,3);
+		textsettings(0);
+		outtextxy(380,360,tfilename);
+		outtextxy(380,380,"Do you want to save");
+		outtextxy(380,400,"the changes made?");
+		switch(mousehandle(3))
+		{
+		case 0:
+			// Cancel
+			return 0;
+		case 1:
+			// Yes
+			save("");
+			changes=0;
+		}
+	}
+	while(curdoc++<no_of_docs-1)	
+		doc[curdoc-1]=doc[curdoc];	
+	no_of_docs--;
+	return 1;
+}
+int document::save(char name[])
+{
+	int temp;
+	if(strcmp(name,"")!=0)
+	{
+		strcat(name,".dat");
+		long temp1;		
+		strcpy(filedetails.name,name);
+		ofile.open(name,ios::binary);
+		ofile.write((char *)&filedetails,sizeof(filedetails));		
+		ifile.open(tfilename,ios::binary);
+		ifile.seekg(185);
+		temp=ifile.get();
+		while(!ifile.eof()&&temp!=-1)
+		{
+			ofile.put(temp);
+			temp=ifile.get();
+		}
+		ofile.close();
+		ifile.close();
+		ifile.open(name,ios::binary);
+		ofile.open(tfilename,ios::binary);
+		temp=ifile.get();
+		while(!ifile.eof()&&temp!=-1)
+		{
+			ofile.put(temp);
+			temp=ifile.get();
+		}		
+		ofile.close();
+		ifile.close();
+		changes=0;
+		return 0;
+	}
+	else
+	{	
+		if(strcmp(filedetails.name,"")==0)
+			return 1;		
+		changes=0;
+		ifile.open(tfilename,ios::binary);
+		ofile.open(filedetails.name,ios::binary);
+		temp=ifile.get();
+		while(!ifile.eof()&&temp!=-1)
+		{
+			ofile.put(temp);
+			temp=ifile.get();
+		}
+		ofile.close();
+		ifile.close();
+	}
+	return 0;
+}
+void document::updatestatus(char msg[])
+{
+	setcolor(53);
+	char temp[50];
+	if(!curuser.statusbar)
+	{
+		imgload("c:/ISWP/images/sb.bmp",0,745,0);
+		outtextxy(40,755,itoa(curpage,temp,10));
+		outtextxy(60,755,itoa(filedetails.no_of_pages,temp,10));
+		outtextxy(136,755,itoa(docno,temp,10));
+		outtextxy(160,755,itoa(no_of_docs,temp,10));
+		outtextxy(295,755,itoa(curline,temp,10)); // set coord
+		outtextxy(365,755,itoa(curcol,temp,10));   // set coord
+		outtextxy(395,755,msg);
+		switch(font.justify)
+		{
+		case -1:
+			outtextxy(945,755,"L");
+			break;
+		case 0:
+			outtextxy(945,755,"C");
+			break;
+		case 1:
+			outtextxy(945,755,"R");
+			break;
+		}			
+		if(font.bold==1)
+			outtextxy(965,755,"B");
+		if(font.italic==0)
+			outtextxy(985,755,"I");   
+		if(font.underline==1)
+			outtextxy(1005,755,"U");   
+	}
+	else
+		imgload("c:/ISWP/images/sb1.bmp",0,745,0);
+
+}
+
+void document::insert(long pos,int a)
+{
+	char temp;
+	file.open(tfilename,ios::binary|ios::in);
+	ofile.open("temp.dat",ios::binary);
+	temp=file.get();
+	do{
+		ofile.put(temp);
+		temp=file.get();				
+	}while(file.tellg()<=pos&&temp!=-1);
+	char *fname[]={"clip.dat","insert.dat"};
+	fstream f(fname[a],ios::binary|ios::in);
+	temp=f.get();
+	if(temp==-1)
+		updatestatus("No text available in the clipboard");
+	else
+	{
+		do
+		{
+			ofile.put(temp);
+			temp=f.get();	
+		}while(!f.eof()&&temp!=-1);
+		file.seekg(-1,ios::cur);
+		temp=file.get();
+		do
+		{
+			ofile.put(temp);
+			temp=file.get();	
+		}while(!file.eof()&&temp!=-1);
+	}
+	file.close();
+	f.close();
+	ofile.close();
+	remove(tfilename);
+	rename("temp.dat",tfilename);
+	showmouse();
+}
+void document::fd()
+{
+	setcolor(53);
+	if(strcmp(filedetails.name,"")==0)
+		outtextxy(463,398,"File name not assigned yet");
+	else
+		outtextxy(463,398,filedetails.name);
+	outtextxy(463,424,filedetails.author);
+	outtextxy(463,450,filedetails.program);
+	outtextxy(463,476,""); // date created
+	outtextxy(463,502,""); // date modified
+	outtextxy(463,520,"Click anywhere to close");
+	int x,y;
+	while(getcord(x,y)!=1);
+	while(getcord(x,y)==1);
+}
+long document::select(int x, int y)
+{
+	int i=1, posx=160;
+	char temp[1];
+	temp[1]='\0';
+	long pos;
+	if(x>110&&x<900&&y>165&&y<729)
+	{		
+		i=(y-188)/32;		
+		if(i<curline)
+		{
+		file.open(tfilename,ios::binary|ios::in);
+		file.seekg(pagestart+pagedetails.l[i].pos);		
+		while(x>posx&&!file.eof())
+		{
+			temp[0]=file.get();
+			if((int)temp[0]+256==147)
+			{
+				int a;
+				file.read((char*)&a,2);
+				font.font=a;
+				updatefont(1);
+			}
+			if((int)temp[0]>31&&(int)temp[0]<127)
+				posx+=outtext(temp,1030,10);
+			else if((int)temp[0]==10)
+				break;
+		}
+		pos=file.tellg();
+		file.close();		
+		setcolor(53);
+		line(posx,i*32+220,posx,i*32+220-32);
+		return pos;
+		}
+		else
+			return 0;
+	}
+	else
+		return 0;
+}
+
+void document::copy(long start, long end, int a)
+{
+	// copy the text from the file from start to end onto the global text variable
+	// a==0 => copy
+	// a==1 => cut
+	char temp[2];
+	temp[1]='\0';	
+	if(a==0)
+	{
+		ifile.open(tfilename,ios::binary);
+		ifile.seekg(start);
+		ofile.open("clip.dat",ios::binary);
+		do{
+			ofile.put(ifile.get());			
+		}while(ifile.tellg()<end);		
+		ofile.close();
+		ifile.close();
+	}
+	else if(a==1)
+	{
+		ifile.open(tfilename,ios::binary);
+		ofile.open("temp.dat",ios::binary);
+		fstream f("clip.dat",ios::binary|ios::out);
+		do{
+			temp[0]=ifile.get();
+			ofile.put(temp[0]);
+		}while(ifile.tellg()<start);		
+		do{
+			temp[0]=ifile.get();			
+			f.put(temp[0]);
+		}while(ifile.tellg()<end);
+		f.close();
+		temp[0]=ifile.get();	
+		while(temp[0]!=-1&&!ifile.eof())
+		{
+			ofile.put(temp[0]);
+			temp[0]=ifile.get();
+		}
+		ifile.close();
+		ofile.close();
+		remove(tfilename);
+		rename("temp.dat",tfilename);
+	}
+}
+
+void document::updatefont(int a)
+{
+	switch(a)
+	{
+	case 0:
+		font.color=::font.color;
+		font.font=::font.font;
+		if(font.underline!=::font.underline)
+			font.underline!=::font.underline
+		font.justify=::font.justify;
+		ofile.open(tfilename,ios::binary|ios::app);
+		int marker=150;
+		ofile.put(marker);
+		ofile.write((char *)&font.color,sizeof(font.color));
+		marker=147;
+		ofile.put(marker);
+		ofile.write((char *)&font.font,sizeof(font.font));
+		marker=190;
+		ofile.put(marker);
+		switch(font.justify)
+		{
+		case -1:
+			marker=142;
+			ofile.put(marker);
+			break;
+		case 0:
+			marker=144;
+			ofile.put(marker);
+			break;
+		case 1:
+			marker=143;
+			ofile.put(marker);
+			break;
+		}
+		ofile.close();
+		break;
+	case 1:
+		::font.color=font.color;
+		::font.font=font.font;
+		break;
+	}
+}
